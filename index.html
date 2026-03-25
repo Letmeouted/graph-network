@@ -787,7 +787,31 @@
                     nodeOpacityValueEl.textContent = this.value;
                 });
             }
-
+            //默认节点大小显示更新
+            const nodeSizeEl = document.getElementById('defaultNodeSize');
+            const nodeSizeValueEl = document.getElementById('defaultNodeSizeValue');
+            if (nodeSizeEl) {
+                nodeSizeEl.addEventListener('input', function() {
+                    nodeSizeValueEl.textContent = this.value;
+                });
+            }
+            
+            //排斥力强度显示更新
+            const  repulsionEl = document.getElementById('repulsion');
+            const repulsionValueEl = document.getElementById('repulsionValue'); 
+            if (repulsionEl) {
+                repulsionEl.addEventListener('input', function() {
+                    repulsionValueEl.textContent = this.value;
+                });
+            }
+            //连线长度显示更新
+            const linkDistanceEl = document.getElementById('linkDistance'); 
+            const linkDistanceValueEl = document.getElementById('linkDistanceValue'); 
+            if (linkDistanceEl) {
+                linkDistanceEl.addEventListener('input', function() {
+                    linkDistanceValueEl.textContent = this.value;
+                });
+            }
             // 数据标签切换
             document.querySelectorAll('.data-tab').forEach(tab => {
                 tab.addEventListener('click', function() {

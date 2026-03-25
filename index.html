@@ -1,0 +1,1739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关系网络图生成器</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+
+        .container {
+            display: grid;
+            grid-template-columns: 320px 1fr;
+            grid-template-rows: auto 1fr;
+            gap: 15px;
+            padding: 15px;
+            height: 100vh;
+        }
+
+        header {
+            grid-column: 1 / -1;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 15px 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, #00d4ff, #7b2cbf);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .upload-area {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            overflow: hidden;
+            display: inline-block;
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: 0;
+            top: 0;
+            opacity: 0;
+            cursor: pointer;
+            width: 100%;
+            height: 100%;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #00d4ff, #0099cc);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.4);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            overflow-y: auto;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 10px;
+            padding: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .panel-title {
+            font-size: 1rem;
+            margin-bottom: 15px;
+            color: #00d4ff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .form-group {
+            margin-bottom: 12px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+        }
+
+        .form-group select,
+        .form-group input[type="text"],
+        .form-group input[type="number"],
+        .form-group input[type="color"] {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .form-group select option {
+            background: #1a1a2e;
+            color: white;
+        }
+
+        .form-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: rgba(255, 255, 255, 0.2);
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .form-group input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #00d4ff;
+            cursor: pointer;
+        }
+
+        .range-value {
+            text-align: right;
+            font-size: 0.8rem;
+            color: #00d4ff;
+            margin-top: 4px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .checkbox-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+
+        .checkbox-item:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .checkbox-item.selected {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
+        .checkbox-item input[type="checkbox"] {
+            display: none;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-rows: 1fr 280px;
+            gap: 15px;
+            min-height: 0;
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow: hidden;
+            position: relative;
+        }
+
+        #chart {
+            width: 100%;
+            height: 100%;
+        }
+
+        .data-panel {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 12px;
+            padding: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            overflow-y: auto;
+        }
+
+        .data-tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .data-tab {
+            padding: 8px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: 1px solid transparent;
+        }
+
+        .data-tab:hover {
+            background: rgba(255, 255, 255, 0.15);
+        }
+
+        .data-tab.active {
+            background: rgba(0, 212, 255, 0.2);
+            border-color: #00d4ff;
+        }
+
+        .data-content {
+            display: none;
+        }
+
+        .data-content.active {
+            display: block;
+        }
+
+        .data-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+        }
+
+        .data-item {
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 6px;
+            font-size: 0.85rem;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .data-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .data-item-name {
+            color: #00d4ff;
+            font-weight: 500;
+        }
+
+        .data-item-type {
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .attr-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            background: rgba(123, 44, 191, 0.3);
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin: 2px;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: rgba(255, 255, 255, 0.5);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .status-bar {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            padding: 8px 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            z-index: 100;
+        }
+
+        .status-bar.success {
+            background: rgba(0, 200, 83, 0.3);
+            border: 1px solid rgba(0, 200, 83, 0.5);
+        }
+
+        .status-bar.error {
+            background: rgba(255, 82, 82, 0.3);
+            border: 1px solid rgba(255, 82, 82, 0.5);
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .color-picker-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .color-picker-group input[type="color"] {
+            width: 40px;
+            height: 35px;
+            padding: 0;
+            border: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔗 关系网络图生成器</h1>
+            <div class="upload-area">
+                <div class="file-input-wrapper">
+                    <button class="btn btn-primary">📁 选择 Excel 文件</button>
+                    <input type="file" id="fileInput" accept=".xlsx,.xls">
+                </div>
+                <button class="btn btn-secondary" id="resetBtn">重置</button>
+            </div>
+        </header>
+
+        <aside class="sidebar">
+            <div class="panel">
+                <h3 class="panel-title">⚙️ 节点配置</h3>
+
+                <div class="form-group">
+                    <label>节点 ID 字段 (可选)</label>
+                    <select id="nodeIdField">
+                        <option value="">-- 自动生成 --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>节点 UID 字段 (可选)</label>
+                    <select id="nodeUidField">
+                        <option value="">-- 无 UID --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>节点名称字段</label>
+                    <select id="nodeNameField"></select>
+                </div>
+
+                <div class="form-group">
+                    <label>节点标签字段</label>
+                    <select id="nodeLabelField">
+                        <option value="">-- 同节点名称 --</option>
+                    </select>
+                    <p style="font-size:0.75rem;color:rgba(255,255,255,0.5);margin-top:4px;">选择要在节点上显示的字段内容</p>
+                </div>
+
+                <div class="form-group">
+                    <label>节点名称颜色</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="nodeLabelColor" value="#000000">
+                        <input type="text" id="nodeLabelColorText" value="#000000" style="flex:1;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>标签显示位置</label>
+                    <select id="labelPosition">
+                        <option value="top">上方</option>
+                        <option value="bottom">下方</option>
+                        <option value="left">左侧</option>
+                        <option value="right">右侧</option>
+                        <option value="inside">内部</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>节点透明度</label>
+                    <input type="range" id="nodeOpacity" min="10" max="100" value="100">
+                    <div class="range-value"><span id="nodeOpacityValue">100</span>%</div>
+                </div>
+
+                <div class="form-group">
+                    <label>节点分类字段 (可选)</label>
+                    <select id="nodeCategoryField">
+                        <option value="">-- 无分类 --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>节点大小字段 (可选)</label>
+                    <select id="nodeSizeField">
+                        <option value="">-- 默认大小 --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>默认节点大小</label>
+                    <input type="range" id="defaultNodeSize" min="5" max="50" value="20">
+                    <div class="range-value"><span id="defaultNodeSizeValue">20</span>px</div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">🔗 连线配置</h3>
+
+                <div class="form-group">
+                    <label>源节点字段</label>
+                    <select id="linkSourceField"></select>
+                </div>
+
+                <div class="form-group">
+                    <label>目标节点字段</label>
+                    <select id="linkTargetField"></select>
+                </div>
+
+                <div class="form-group">
+                    <label>连线匹配节点字段</label>
+                    <select id="linkMatchField">
+                        <option value="name">使用名称匹配</option>
+                        <option value="id">使用 ID 匹配</option>
+                        <option value="uid">使用 UID 匹配</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>连线标签字段 (可选)</label>
+                    <select id="linkLabelField">
+                        <option value="">-- 无标签 --</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>连线权重字段 (可选)</label>
+                    <select id="linkWeightField">
+                        <option value="">-- 无权重 --</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">🎨 显示效果</h3>
+
+                <div class="form-group">
+                    <label>布局类型</label>
+                    <select id="layoutType">
+                        <option value="force">力引导布局</option>
+                        <option value="circular">环形布局</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label>节点可拖拽</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" id="nodeDraggable" checked>
+                            <span>允许拖拽</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>标签显示比例</label>
+                    <input type="range" id="labelRatio" min="1" max="100" value="100">
+                    <div class="range-value"><span id="labelRatioValue">100</span>% 的节点显示标签</div>
+                </div>
+
+                <div class="form-group">
+                    <label>标签字体大小</label>
+                    <input type="range" id="labelFontSize" min="8" max="20" value="12">
+                    <div class="range-value"><span id="labelFontSizeValue">12</span>px</div>
+                </div>
+
+                <div class="form-group">
+                    <label>连线颜色</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="linkColor" value="#000000">
+                        <input type="text" id="linkColorText" value="#000000" style="flex:1;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>图例字体颜色</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="legendColor" value="#000000">
+                        <input type="text" id="legendColorText" value="#000000" style="flex:1;">
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>排斥力强度</label>
+                    <input type="range" id="repulsion" min="10" max="200" value="50">
+                    <div class="range-value"><span id="repulsionValue">50</span></div>
+                </div>
+
+                <div class="form-group">
+                    <label>连线长度</label>
+                    <input type="range" id="linkDistance" min="50" max="300" value="150">
+                    <div class="range-value"><span id="linkDistanceValue">150</span>px</div>
+                </div>
+
+                <div class="form-group">
+                    <label>显示连线箭头</label>
+                    <div class="checkbox-group">
+                        <label class="checkbox-item selected">
+                            <input type="checkbox" id="showArrow" checked>
+                            <span>显示箭头</span>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="form-group">
+                    <label>背景颜色</label>
+                    <div class="color-picker-group">
+                        <input type="color" id="bgColor" value="#ffffff">
+                        <input type="text" id="bgColorText" value="#ffffff" style="flex:1;">
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">🎨 分类颜色配置</h3>
+                <div id="categoryColors"></div>
+            </div>
+
+            <div class="panel">
+                <h3 class="panel-title">📤 导出</h3>
+                <button class="btn btn-secondary" id="exportJson" style="width:100%;margin-bottom:10px;">导出 JSON 数据</button>
+                <button class="btn btn-primary" id="exportHtml" style="width:100%;">导出关系图 HTML</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <div class="chart-container">
+                <div id="chart"></div>
+                <div class="empty-state" id="emptyState">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1">
+                        <circle cx="12" cy="12" r="3"/>
+                        <circle cx="6" cy="6" r="2"/>
+                        <circle cx="18" cy="18" r="2"/>
+                        <circle cx="18" cy="6" r="2"/>
+                        <circle cx="6" cy="18" r="2"/>
+                        <line x1="9" y1="9" x2="15" y2="15"/>
+                        <line x1="9" y1="15" x2="15" y2="9"/>
+                    </svg>
+                    <p>请上传 Excel 文件开始生成关系网络图</p>
+                    <p style="font-size: 0.85rem; margin-top: 10px;">Excel 需包含 node 和 link 两个 Sheet</p>
+                </div>
+                <div class="status-bar" id="statusBar" style="display: none;"></div>
+            </div>
+
+            <div class="data-panel">
+                <div class="data-tabs">
+                    <div class="data-tab active" data-tab="nodeAttrs">节点属性</div>
+                    <div class="data-tab" data-tab="linkAttrs">连线属性</div>
+                    <div class="data-tab" data-tab="nodeData">节点数据预览</div>
+                    <div class="data-tab" data-tab="linkData">连线数据预览</div>
+                </div>
+
+                <div class="data-content active" id="nodeAttrsContent">
+                    <div class="data-grid" id="nodeAttrsGrid"></div>
+                </div>
+
+                <div class="data-content" id="linkAttrsContent">
+                    <div class="data-grid" id="linkAttrsGrid"></div>
+                </div>
+
+                <div class="data-content" id="nodeDataContent">
+                    <div class="data-grid" id="nodeDataGrid"></div>
+                </div>
+
+                <div class="data-content" id="linkDataContent">
+                    <div class="data-grid" id="linkDataGrid"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 全局状态
+        let chartInstance = null;
+        let nodeData = [];
+        let linkData = [];
+        let nodeHeaders = [];
+        let linkHeaders = [];
+        let categories = new Set();
+
+        // 初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initChart();
+            initEventListeners();
+        });
+
+        // 初始化图表
+        function initChart() {
+            const chartDom = document.getElementById('chart');
+            chartInstance = echarts.init(chartDom, null, { renderer: 'canvas' });
+            window.addEventListener('resize', () => chartInstance.resize());
+        }
+
+        // 初始化事件监听
+        function initEventListeners() {
+            // 文件上传
+            document.getElementById('fileInput').addEventListener('change', handleFileSelect);
+
+            // 重置按钮
+            document.getElementById('resetBtn').addEventListener('click', resetApp);
+
+            // 导出 JSON
+            document.getElementById('exportJson').addEventListener('click', exportJson);
+
+            // 导出 HTML
+            document.getElementById('exportHtml').addEventListener('click', exportHtml);
+
+            // 配置变更监听 - 添加防抖
+            const configInputs = [
+                'nodeIdField', 'nodeUidField', 'nodeNameField', 'nodeLabelField', 'nodeCategoryField', 'nodeSizeField', 'defaultNodeSize',
+                'linkSourceField', 'linkTargetField', 'linkMatchField', 'linkLabelField', 'linkWeightField',
+                'layoutType', 'nodeDraggable', 'labelRatio', 'labelFontSize', 'labelPosition', 'nodeOpacity',
+                'nodeLabelColor', 'nodeLabelColorText',
+                'linkColor', 'linkColorText', 'legendColor', 'legendColorText',
+                'repulsion', 'linkDistance', 'showArrow',
+                'bgColor', 'bgColorText'
+            ];
+
+            // 防抖函数
+            let updateTimeout = null;
+            function debounceUpdate(callback) {
+                if (updateTimeout) clearTimeout(updateTimeout);
+                updateTimeout = setTimeout(callback, 50);
+            }
+
+            configInputs.forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('change', function() {
+                        // 节点分类字段变化时，更新分类颜色 UI
+                        if (id === 'nodeCategoryField') {
+                            debounceUpdate(() => {
+                                updateChart();
+                                updateCategoryColorsUI();
+                            });
+                        } else {
+                            debounceUpdate(() => updateChart());
+                        }
+                    });
+                    if (id !== 'bgColorText' && id !== 'bgColor') {
+                        el.addEventListener('input', function() {
+                            debounceUpdate(() => updateChart());
+                        });
+                    }
+                }
+            });
+
+            // 颜色选择器同步
+            document.getElementById('bgColor').addEventListener('input', function(e) {
+                document.getElementById('bgColorText').value = e.target.value;
+            });
+            document.getElementById('bgColorText').addEventListener('input', function(e) {
+                document.getElementById('bgColor').value = e.target.value;
+            });
+
+            // 连线颜色同步
+            document.getElementById('linkColor').addEventListener('input', function(e) {
+                document.getElementById('linkColorText').value = e.target.value;
+            });
+            document.getElementById('linkColorText').addEventListener('input', function(e) {
+                document.getElementById('linkColor').value = e.target.value;
+            });
+
+            // 图例字体颜色同步
+            document.getElementById('legendColor').addEventListener('input', function(e) {
+                document.getElementById('legendColorText').value = e.target.value;
+            });
+            document.getElementById('legendColorText').addEventListener('input', function(e) {
+                document.getElementById('legendColor').value = e.target.value;
+            });
+
+            // 节点名称颜色同步
+            document.getElementById('nodeLabelColor').addEventListener('input', function(e) {
+                document.getElementById('nodeLabelColorText').value = e.target.value;
+            });
+            document.getElementById('nodeLabelColorText').addEventListener('input', function(e) {
+                document.getElementById('nodeLabelColor').value = e.target.value;
+            });
+
+            // 标签比例显示更新
+            const labelRatioEl = document.getElementById('labelRatio');
+            const labelRatioValueEl = document.getElementById('labelRatioValue');
+            if (labelRatioEl) {
+                labelRatioEl.addEventListener('input', function() {
+                    labelRatioValueEl.textContent = this.value;
+                });
+            }
+
+            // 标签字体大小显示更新
+            const labelFontSizeEl = document.getElementById('labelFontSize');
+            const labelFontSizeValueEl = document.getElementById('labelFontSizeValue');
+            if (labelFontSizeEl) {
+                labelFontSizeEl.addEventListener('input', function() {
+                    labelFontSizeValueEl.textContent = this.value;
+                });
+            }
+
+            // 节点透明度显示更新
+            const nodeOpacityEl = document.getElementById('nodeOpacity');
+            const nodeOpacityValueEl = document.getElementById('nodeOpacityValue');
+            if (nodeOpacityEl) {
+                nodeOpacityEl.addEventListener('input', function() {
+                    nodeOpacityValueEl.textContent = this.value;
+                });
+            }
+
+            // 数据标签切换
+            document.querySelectorAll('.data-tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.data-tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.data-content').forEach(c => c.classList.remove('active'));
+                    this.classList.add('active');
+                    document.getElementById(this.dataset.tab + 'Content').classList.add('active');
+                });
+            });
+        }
+
+        // 分类颜色管理
+        let categoryColors = {};
+
+        // 生成默认颜色
+        function getDefaultColor(index) {
+            const baseColors = [
+                '#00d4ff', '#7b2cbf', '#00ff88', '#ff006e', '#fb5607',
+                '#8338ec', '#3a86ff', '#ffbe0b', '#80ed99', '#57cc99',
+                '#38b000', '#008000', '#004b23', '#9d4edd', '#c77dff',
+                '#e0aaff', '#540b94', '#6a0572', '#ff6b6b', '#4ecdc4'
+            ];
+            return baseColors[index % baseColors.length];
+        }
+
+        // 更新分类颜色配置 UI
+        function updateCategoryColorsUI() {
+            const container = document.getElementById('categoryColors');
+            if (!container) return;
+
+            // 检查是否选择了分类字段
+            const nodeCategoryField = document.getElementById('nodeCategoryField');
+            if (!nodeCategoryField || !nodeCategoryField.value) {
+                container.innerHTML = '<p style="font-size:0.85rem;color:rgba(255,255,255,0.5);padding:10px;">请选择节点分类字段后显示分类颜色配置</p>';
+                return;
+            }
+
+            if (categories.size === 0) return;
+
+            const categoryArray = Array.from(categories);
+            let html = '';
+
+            categoryArray.forEach((category, index) => {
+                const color = categoryColors[category] || getDefaultColor(index);
+                // 转义 category 中的特殊字符
+                const safeCategory = category.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                html += `
+                    <div class="form-group" style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <input type="color" value="${color}" data-category="${safeCategory}"
+                               style="width:30px;height:30px;padding:0;border:none;cursor:pointer;"
+                               id="color-${index}">
+                        <span style="flex:1;font-size:0.85rem;color:rgba(255,255,255,0.8);word-break:break-all;">${category}</span>
+                    </div>
+                `;
+            });
+
+            container.innerHTML = html;
+
+            // 绑定颜色变化事件
+            categoryArray.forEach((category, index) => {
+                const colorInput = document.getElementById(`color-${index}`);
+                if (colorInput) {
+                    colorInput.addEventListener('input', function() {
+                        categoryColors[category] = this.value;
+                        updateChart();
+                    });
+                }
+            });
+        }
+
+        // 处理文件选择
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    // 显示所有 sheet 名称，方便调试
+                    console.log('Excel Sheet 名称:', workbook.SheetNames);
+
+                    processWorkbook(workbook);
+                } catch (err) {
+                    console.error('读取 Excel 错误:', err);
+                    showStatus('读取 Excel 文件失败：' + err.message, 'error');
+                }
+            };
+            reader.onerror = () => showStatus('读取文件失败', 'error');
+            reader.readAsArrayBuffer(file);
+        }
+
+        // 处理工作簿
+        function processWorkbook(workbook) {
+            // 查找 node 和 link sheet
+            const nodeSheetName = findSheet(workbook, ['node', 'nodes', '节点']);
+            const linkSheetName = findSheet(workbook, ['link', 'links', '连线', '关系', 'edge', 'edges']);
+
+            console.log('nodeSheetName:', nodeSheetName, 'linkSheetName:', linkSheetName);
+
+            if (!nodeSheetName || !linkSheetName) {
+                const availableSheets = workbook.SheetNames.join('、');
+                showStatus(`Excel 必须包含 node 和 link 两个 Sheet。当前可用的 Sheet: ${availableSheets}`, 'error');
+                return;
+            }
+
+            // 读取数据
+            nodeData = XLSX.utils.sheet_to_json(workbook.Sheets[nodeSheetName]);
+            linkData = XLSX.utils.sheet_to_json(workbook.Sheets[linkSheetName]);
+
+            console.log('nodeData:', nodeData.length, 'linkData:', linkData.length);
+
+            // 获取表头
+            nodeHeaders = nodeData.length > 0 ? Object.keys(nodeData[0]) : [];
+            linkHeaders = linkData.length > 0 ? Object.keys(linkData[0]) : [];
+
+            // 更新 UI
+            populateSelects();
+            displayAttributes();
+            displayDataPreview();
+
+            // 更新图表（会先构建 categories）
+            updateChart();
+
+            // 上传文件时默认不显示分类颜色配置
+            // 只有当用户选择分类字段后才显示
+            clearCategoryColorsUI();
+
+            // 隐藏空状态
+            document.getElementById('emptyState').style.display = 'none';
+            showStatus(`加载成功：${nodeData.length} 个节点，${linkData.length} 条连线`, 'success');
+        }
+
+        // 清空分类颜色 UI
+        function clearCategoryColorsUI() {
+            const container = document.getElementById('categoryColors');
+            if (container) {
+                container.innerHTML = '<p style="font-size:0.85rem;color:rgba(255,255,255,0.5);padding:10px;">请选择节点分类字段后显示分类颜色配置</p>';
+            }
+        }
+
+        // 查找 Sheet
+        function findSheet(workbook, names) {
+            for (const name of names) {
+                const found = workbook.SheetNames.find(s => s.toLowerCase().includes(name));
+                if (found) return found;
+            }
+            return null;
+        }
+
+        // 填充选择框
+        function populateSelects() {
+            const selects = [
+                'nodeIdField', 'nodeUidField', 'nodeNameField', 'nodeLabelField', 'nodeCategoryField', 'nodeSizeField'
+            ];
+
+            selects.forEach(id => {
+                const select = document.getElementById(id);
+                const hasEmptyOption = id !== 'nodeNameField' && id !== 'nodeLabelField';
+                const currentValue = select.value;
+
+                select.innerHTML = '';
+
+                if (hasEmptyOption) {
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = id === 'nodeIdField' ? '-- 自动生成 --' :
+                                              id === 'nodeUidField' ? '-- 无 UID --' :
+                                              id === 'nodeLabelField' ? '-- 同节点名称 --' :
+                                              id === 'nodeCategoryField' ? '-- 无分类 --' :
+                                              id === 'nodeSizeField' ? '-- 默认大小 --' : '-- 选择 --';
+                    select.appendChild(emptyOption);
+                } else if (id === 'nodeLabelField') {
+                    // 节点标签字段的空选项
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = '-- 同节点名称 --';
+                    select.appendChild(emptyOption);
+                }
+
+                nodeHeaders.forEach(header => {
+                    const option = document.createElement('option');
+                    option.value = header;
+                    option.textContent = header;
+                    select.appendChild(option);
+                });
+
+                // 设置默认值或保持当前值
+                if (id === 'nodeNameField' && nodeHeaders.length > 0) {
+                    select.value = nodeHeaders[0];
+                } else if (id === 'nodeLabelField' && currentValue && nodeHeaders.includes(currentValue)) {
+                    select.value = currentValue;
+                } else if (id === 'nodeIdField' && nodeHeaders.includes('id')) {
+                    select.value = 'id';
+                } else if (id === 'nodeUidField' && nodeHeaders.includes('uid')) {
+                    select.value = 'uid';
+                } else if (currentValue && nodeHeaders.includes(currentValue)) {
+                    select.value = currentValue;
+                }
+            });
+
+            // 连线字段
+            const linkSelects = [
+                'linkSourceField', 'linkTargetField', 'linkLabelField', 'linkWeightField'
+            ];
+
+            linkSelects.forEach(id => {
+                const select = document.getElementById(id);
+                const hasEmptyOption = id === 'linkLabelField' || id === 'linkWeightField';
+                const currentValue = select.value; // 保存当前值
+
+                select.innerHTML = '';
+
+                if (hasEmptyOption) {
+                    const emptyOption = document.createElement('option');
+                    emptyOption.value = '';
+                    emptyOption.textContent = id === 'linkLabelField' ? '-- 无标签 --' : '-- 无权重 --';
+                    select.appendChild(emptyOption);
+                }
+
+                linkHeaders.forEach(header => {
+                    const option = document.createElement('option');
+                    option.value = header;
+                    option.textContent = header;
+                    select.appendChild(option);
+                });
+
+                // 设置默认值或保持当前值
+                if (id === 'linkSourceField' && linkHeaders.length > 0) {
+                    select.value = linkHeaders[0];
+                } else if (id === 'linkTargetField' && linkHeaders.length > 1) {
+                    select.value = linkHeaders[1];
+                } else if (currentValue && linkHeaders.includes(currentValue)) {
+                    select.value = currentValue;
+                }
+            });
+        }
+
+        // 显示属性列表
+        function displayAttributes() {
+            // 节点属性
+            const nodeAttrsGrid = document.getElementById('nodeAttrsGrid');
+            nodeAttrsGrid.innerHTML = nodeHeaders.map(header => {
+                const sampleValue = nodeData[0] ? nodeData[0][header] : '';
+                const type = getValueType(sampleValue);
+                return `
+                    <div class="data-item">
+                        <div class="data-item-header">
+                            <span class="data-item-name">${header}</span>
+                            <span class="data-item-type">${type}</span>
+                        </div>
+                        <div>
+                            <span class="attr-badge">可作为 name</span>
+                            <span class="attr-badge">可作为属性</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // 连线属性
+            const linkAttrsGrid = document.getElementById('linkAttrsGrid');
+            linkAttrsGrid.innerHTML = linkHeaders.map(header => {
+                const sampleValue = linkData[0] ? linkData[0][header] : '';
+                const type = getValueType(sampleValue);
+                return `
+                    <div class="data-item">
+                        <div class="data-item-header">
+                            <span class="data-item-name">${header}</span>
+                            <span class="data-item-type">${type}</span>
+                        </div>
+                        <div>
+                            <span class="attr-badge">可作为 source</span>
+                            <span class="attr-badge">可作为 target</span>
+                            <span class="attr-badge">可作为 label</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 获取值类型
+        function getValueType(value) {
+            if (value === null || value === undefined) return '未知';
+            if (typeof value === 'number') return '数值';
+            if (typeof value === 'boolean') return '布尔';
+            if (!isNaN(Date.parse(value))) return '日期';
+            return '文本';
+        }
+
+        // 显示数据预览
+        function displayDataPreview() {
+            // 节点数据预览
+            const nodeDataGrid = document.getElementById('nodeDataGrid');
+            nodeDataGrid.innerHTML = nodeData.slice(0, 12).map((node, i) => {
+                const attrs = Object.entries(node).slice(0, 3).map(([k, v]) =>
+                    `<span class="attr-badge">${k}: ${truncate(String(v), 15)}</span>`
+                ).join('');
+                return `
+                    <div class="data-item">
+                        <div class="data-item-header">
+                            <span class="data-item-name">节点 ${i + 1}</span>
+                        </div>
+                        <div>${attrs}</div>
+                    </div>
+                `;
+            }).join('');
+
+            // 连线数据预览
+            const linkDataGrid = document.getElementById('linkDataGrid');
+            linkDataGrid.innerHTML = linkData.slice(0, 12).map((link, i) => {
+                const attrs = Object.entries(link).slice(0, 3).map(([k, v]) =>
+                    `<span class="attr-badge">${k}: ${truncate(String(v), 15)}</span>`
+                ).join('');
+                return `
+                    <div class="data-item">
+                        <div class="data-item-header">
+                            <span class="data-item-name">连线 ${i + 1}</span>
+                        </div>
+                        <div>${attrs}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // 截断字符串
+        function truncate(str, len) {
+            return str.length > len ? str.substring(0, len) + '...' : str;
+        }
+
+        // 更新图表
+        function updateChart() {
+            if (nodeData.length === 0 || linkData.length === 0) return;
+
+            try {
+                const nodeIdField = document.getElementById('nodeIdField').value;
+                const nodeUidField = document.getElementById('nodeUidField').value;
+                const nodeNameField = document.getElementById('nodeNameField').value || nodeHeaders[0];
+                const nodeCategoryField = document.getElementById('nodeCategoryField').value;
+                const nodeSizeField = document.getElementById('nodeSizeField').value;
+                const defaultNodeSize = parseInt(document.getElementById('defaultNodeSize').value);
+
+                const linkSourceField = document.getElementById('linkSourceField').value || linkHeaders[0];
+                const linkTargetField = document.getElementById('linkTargetField').value || linkHeaders[1];
+                const linkMatchField = document.getElementById('linkMatchField').value; // 匹配字段：name/id/uid
+                const linkLabelField = document.getElementById('linkLabelField').value;
+                const linkWeightField = document.getElementById('linkWeightField').value;
+
+                const layoutType = document.getElementById('layoutType').value;
+                const repulsion = parseInt(document.getElementById('repulsion').value);
+                const linkDistance = parseInt(document.getElementById('linkDistance').value);
+                const nodeDraggable = document.getElementById('nodeDraggable').checked;
+                const labelRatio = parseInt(document.getElementById('labelRatio').value);
+                const labelFontSize = parseInt(document.getElementById('labelFontSize').value);
+                const labelPosition = document.getElementById('labelPosition').value;
+                const nodeOpacity = parseInt(document.getElementById('nodeOpacity').value) / 100;
+                const nodeLabelField = document.getElementById('nodeLabelField').value;
+                const nodeLabelColor = document.getElementById('nodeLabelColor').value;
+                const linkColor = document.getElementById('linkColor').value;
+                const legendColor = document.getElementById('legendColor').value;
+                const showArrow = document.getElementById('showArrow').checked;
+                const bgColor = document.getElementById('bgColor').value;
+
+                // 处理节点数据，建立名称映射
+                categories.clear();
+                const tempCategories = []; // 临时保存分类列表用于 UI 更新
+                const nodeMap = new Map(); // 用于通过匹配字段查找节点 ID
+
+                const nodes = nodeData.map((node, index) => {
+                    const category = nodeCategoryField && node[nodeCategoryField]
+                        ? String(node[nodeCategoryField])
+                        : 'default';
+
+                    if (!categories.has(category)) {
+                        categories.add(category);
+                        tempCategories.push(category);
+                    }
+
+                    const nodeName = String(node[nodeNameField] !== undefined && node[nodeNameField] !== ''
+                        ? node[nodeNameField]
+                        : '节点_' + index);
+
+                    // 构建节点对象，支持 id、uid、name 格式
+                    const nodeObj = {
+                        name: nodeName,
+                        category: category,
+                        symbolSize: nodeSizeField && node[nodeSizeField]
+                            ? Number(node[nodeSizeField]) || defaultNodeSize
+                            : defaultNodeSize,
+                        originalData: node
+                    };
+
+                    // 添加 id 字段
+                    if (nodeIdField && node[nodeIdField] !== undefined) {
+                        nodeObj.id = node[nodeIdField];
+                    } else {
+                        nodeObj.id = index; // 自动生成 id
+                    }
+
+                    // 添加 uid 字段
+                    if (nodeUidField && node[nodeUidField] !== undefined) {
+                        nodeObj.uid = String(node[nodeUidField]);
+                    }
+
+                    // 建立映射：根据匹配字段（name/id/uid）映射到节点索引
+                    if (linkMatchField === 'id') {
+                        nodeMap.set(String(nodeObj.id), nodeObj.id);
+                    } else if (linkMatchField === 'uid') {
+                        if (nodeObj.uid) {
+                            nodeMap.set(nodeObj.uid, nodeObj.id);
+                        }
+                    } else {
+                        // 默认使用 name 匹配
+                        nodeMap.set(nodeName, nodeObj.id);
+                    }
+
+                    return nodeObj;
+                });
+
+                // 处理连线数据，将 source/target 转换为节点 ID
+                const validLinks = linkData.filter(link => {
+                    const sourceVal = link[linkSourceField];
+                    const targetVal = link[linkTargetField];
+                    // 过滤掉 source 或 target 为空的连线
+                    return sourceVal !== undefined && sourceVal !== '' &&
+                           targetVal !== undefined && targetVal !== '';
+                });
+
+                const links = validLinks.map((link, index) => {
+                    const sourceVal = String(link[linkSourceField]);
+                    const targetVal = String(link[linkTargetField]);
+
+                    // 通过映射表查找对应的节点 ID
+                    const sourceId = nodeMap.has(sourceVal) ? nodeMap.get(sourceVal) : sourceVal;
+                    const targetId = nodeMap.has(targetVal) ? nodeMap.get(targetVal) : targetVal;
+
+                    const result = {
+                        id: 'link_' + index,
+                        source: sourceId,
+                        target: targetId
+                    };
+
+                    if (linkLabelField && link[linkLabelField]) {
+                        result.value = String(link[linkLabelField]);
+                    }
+
+                    if (linkWeightField && link[linkWeightField]) {
+                        result.lineStyle = {
+                            width: Math.max(1, Number(link[linkWeightField]) || 1)
+                        };
+                    }
+
+                    return result;
+                });
+
+                // 生成类别颜色
+                const categoryArray = Array.from(categories);
+                // 使用用户配置的颜色或默认颜色
+                const colors = categoryArray.map((name, i) => {
+                    return categoryColors[name] || getDefaultColor(i);
+                });
+
+                // 计算哪些节点显示标签（根据比例）
+                const labelThreshold = 100 - labelRatio;
+                const nodesWithLabel = nodes.map((node, index) => {
+                    const shouldShowLabel = labelRatio >= 100 ||
+                                           (index * 100 / nodes.length) >= labelThreshold;
+
+                    // 获取标签显示内容：如果选择了标签字段则使用该字段值，否则使用节点 name
+                    let labelText = node.name;
+                    if (nodeLabelField && node.originalData && node.originalData[nodeLabelField] !== undefined) {
+                        labelText = String(node.originalData[nodeLabelField]);
+                    }
+
+                    return {
+                        ...node,
+                        label: {
+                            show: shouldShowLabel,
+                            position: labelPosition,
+                            formatter: (params) => {
+                                return params.data.nodeLabel || params.name;
+                            },
+                            color: nodeLabelColor,
+                            fontSize: labelFontSize
+                        },
+                        nodeLabel: labelText // 保存标签文本用于导出
+                    };
+                });
+
+                // 配置
+                const option = {
+                    backgroundColor: bgColor,
+                    tooltip: {
+                        trigger: 'item',
+                        formatter: function(params) {
+                            if (params.dataType === 'node') {
+                                let content = `<strong>${params.name}</strong><br/>`;
+                                if (params.data.originalData) {
+                                    Object.entries(params.data.originalData).forEach(([k, v]) => {
+                                        content += `${k}: ${v}<br/>`;
+                                    });
+                                }
+                                return content;
+                            }
+                            return `${params.data.source} → ${params.data.target}<br/>${params.data.value || ''}`;
+                        }
+                    },
+                    legend: [{
+                        data: categoryArray,
+                        textStyle: { color: legendColor },
+                        left: 10,
+                        top: 'middle',
+                        orient: 'vertical'
+                    }],
+                    series: [{
+                        type: 'graph',
+                        layout: layoutType,
+                        data: nodesWithLabel,
+                        links: links,
+                        categories: categoryArray.map((name, i) => ({
+                            name,
+                            itemStyle: { color: colors[i] }
+                        })),
+                        roam: true,
+                        label: {
+                            show: true,
+                            position: labelPosition,
+                            formatter: '{b}',
+                            color: nodeLabelColor,
+                            fontSize: labelFontSize
+                        },
+                        nodeStyle: {
+                            opacity: nodeOpacity
+                        },
+                        draggable: nodeDraggable,
+                        lineStyle: {
+                            color: linkColor,
+                            curveness: 0.3,
+                            width: 1
+                        },
+                        edgeSymbol: showArrow ? ['none', 'arrow'] : ['none', 'none'],
+                        edgeSymbolSize: 10,
+                        emphasis: {
+                            focus: 'adjacency',
+                            lineStyle: { width: 3 }
+                        },
+                        force: layoutType === 'force' ? {
+                        repulsion: repulsion,
+                        edgeLength: linkDistance,
+                        gravity: 0.1
+                    } : null,
+                    circular: layoutType === 'circular' ? {
+                        rotateLabel: true
+                    } : null
+                }]
+            };
+
+            chartInstance.setOption(option, true);
+            } catch (err) {
+                console.error('更新图表失败:', err);
+                showStatus('更新图表失败：' + err.message, 'error');
+            }
+        }
+
+        // 生成颜色
+        function generateColors(count) {
+            const baseColors = [
+                '#00d4ff', '#7b2cbf', '#00ff88', '#ff006e', '#fb5607',
+                '#8338ec', '#3a86ff', '#ff006e', '#ffbe0b', '#80ed99',
+                '#57cc99', '#38b000', '#008000', '#004b23', '#38b000',
+                '#9d4edd', '#c77dff', '#e0aaff', '#540b94', '#6a0572'
+            ];
+
+            const colors = [];
+            for (let i = 0; i < count; i++) {
+                colors.push(baseColors[i % baseColors.length]);
+            }
+            return colors;
+        }
+
+        // 导出 JSON
+        function exportJson() {
+            if (nodeData.length === 0) {
+                showStatus('没有可导出的数据', 'error');
+                return;
+            }
+
+            const nodeIdField = document.getElementById('nodeIdField').value;
+            const nodeUidField = document.getElementById('nodeUidField').value;
+            const nodeNameField = document.getElementById('nodeNameField').value || nodeHeaders[0];
+            const nodeCategoryField = document.getElementById('nodeCategoryField').value;
+            const linkSourceField = document.getElementById('linkSourceField').value || linkHeaders[0];
+            const linkTargetField = document.getElementById('linkTargetField').value || linkHeaders[1];
+            const linkLabelField = document.getElementById('linkLabelField').value;
+
+            const exportData = {
+                nodes: nodeData.map((node, index) => {
+                    const nodeObj = {
+                        id: nodeIdField && node[nodeIdField] !== undefined ? node[nodeIdField] : index,
+                        name: String(node[nodeNameField] || '未知'),
+                        category: nodeCategoryField ? String(node[nodeCategoryField]) : 'default'
+                    };
+                    if (nodeUidField && node[nodeUidField] !== undefined) {
+                        nodeObj.uid = String(node[nodeUidField]);
+                    }
+                    nodeObj.attributes = node;
+                    return nodeObj;
+                }),
+                links: linkData.map(link => ({
+                    source: String(link[linkSourceField] || ''),
+                    target: String(link[linkTargetField] || ''),
+                    label: linkLabelField ? String(link[linkLabelField]) : null,
+                    attributes: link
+                }))
+            };
+
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'graph-data.json';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showStatus('JSON 数据已导出', 'success');
+        }
+
+        // 导出 HTML
+        function exportHtml() {
+            if (nodeData.length === 0 || linkData.length === 0) {
+                showStatus('没有可导出的数据', 'error');
+                return;
+            }
+
+            // 获取当前配置
+            const config = {
+                nodeIdField: document.getElementById('nodeIdField').value,
+                nodeUidField: document.getElementById('nodeUidField').value,
+                nodeNameField: document.getElementById('nodeNameField').value || nodeHeaders[0],
+                nodeLabelField: document.getElementById('nodeLabelField').value,
+                nodeCategoryField: document.getElementById('nodeCategoryField').value,
+                nodeSizeField: document.getElementById('nodeSizeField').value,
+                defaultNodeSize: parseInt(document.getElementById('defaultNodeSize').value),
+                linkSourceField: document.getElementById('linkSourceField').value || linkHeaders[0],
+                linkTargetField: document.getElementById('linkTargetField').value || linkHeaders[1],
+                linkMatchField: document.getElementById('linkMatchField').value,
+                linkLabelField: document.getElementById('linkLabelField').value,
+                linkWeightField: document.getElementById('linkWeightField').value,
+                layoutType: document.getElementById('layoutType').value,
+                nodeDraggable: document.getElementById('nodeDraggable').checked,
+                labelRatio: parseInt(document.getElementById('labelRatio').value),
+                labelFontSize: parseInt(document.getElementById('labelFontSize').value),
+                labelPosition: document.getElementById('labelPosition').value,
+                nodeOpacity: parseInt(document.getElementById('nodeOpacity').value) / 100,
+                nodeLabelColor: document.getElementById('nodeLabelColor').value,
+                linkColor: document.getElementById('linkColor').value,
+                legendColor: document.getElementById('legendColor').value,
+                repulsion: parseInt(document.getElementById('repulsion').value),
+                linkDistance: parseInt(document.getElementById('linkDistance').value),
+                showArrow: document.getElementById('showArrow').checked,
+                bgColor: document.getElementById('bgColor').value
+            };
+
+            // 构建导出的节点和连线数据（与当前图表显示的完全一致）
+            const categories = new Set();
+            const nodeMap = new Map(); // 用于连线匹配
+
+            const exportNodes = nodeData.map((node, index) => {
+                const category = config.nodeCategoryField && node[config.nodeCategoryField]
+                    ? String(node[config.nodeCategoryField])
+                    : 'default';
+                categories.add(category);
+
+                const nodeName = String(node[config.nodeNameField] !== undefined && node[config.nodeNameField] !== ''
+                    ? node[config.nodeNameField]
+                    : '节点_' + index);
+
+                const nodeObj = {
+                    name: nodeName,
+                    category: category,
+                    symbolSize: config.nodeSizeField && node[config.nodeSizeField]
+                        ? Number(node[config.nodeSizeField]) || config.defaultNodeSize
+                        : config.defaultNodeSize
+                };
+
+                // 设置节点 id（用于 ECharts graph 关联）
+                if (config.nodeIdField && node[config.nodeIdField] !== undefined) {
+                    nodeObj.id = node[config.nodeIdField];
+                } else {
+                    nodeObj.id = index;
+                }
+
+                if (config.nodeUidField && node[config.nodeUidField] !== undefined) {
+                    nodeObj.uid = String(node[config.nodeUidField]);
+                }
+
+                // 保存原始数据用于导出 HTML 时访问标签字段
+                nodeObj.originalData = node;
+
+                // 建立映射：根据匹配字段映射到节点的 id
+                if (config.linkMatchField === 'id') {
+                    nodeMap.set(String(nodeObj.id), nodeObj.id);
+                } else if (config.linkMatchField === 'uid') {
+                    if (nodeObj.uid) {
+                        nodeMap.set(nodeObj.uid, nodeObj.id);
+                    }
+                } else {
+                    // 默认使用 name 匹配
+                    nodeMap.set(nodeName, nodeObj.id);
+                }
+
+                return nodeObj;
+            });
+
+            // 处理连线数据，使用与当前图表相同的匹配逻辑
+            const exportLinks = linkData
+                .filter(link => {
+                    const sourceVal = link[config.linkSourceField];
+                    const targetVal = link[config.linkTargetField];
+                    return sourceVal !== undefined && sourceVal !== '' &&
+                           targetVal !== undefined && targetVal !== '';
+                })
+                .map((link, index) => {
+                    const sourceVal = String(link[config.linkSourceField]);
+                    const targetVal = String(link[config.linkTargetField]);
+
+                    // 通过映射表查找对应的节点 ID
+                    const sourceId = nodeMap.has(sourceVal) ? nodeMap.get(sourceVal) : sourceVal;
+                    const targetId = nodeMap.has(targetVal) ? nodeMap.get(targetVal) : targetVal;
+
+                    const result = {
+                        id: 'link_' + index,
+                        source: sourceId,
+                        target: targetId
+                    };
+
+                    if (config.linkLabelField && link[config.linkLabelField]) {
+                        result.value = String(link[config.linkLabelField]);
+                    }
+
+                    if (config.linkWeightField && link[config.linkWeightField]) {
+                        result.lineStyle = {
+                            width: Math.max(1, Number(link[config.linkWeightField]) || 1)
+                        };
+                    }
+
+                    return result;
+                });
+
+            // 生成分类颜色（包含用户自定义的颜色）
+            const categoryArray = Array.from(categories);
+            const exportColors = categoryArray.map((name, i) => {
+                return categoryColors[name] || getDefaultColor(i);
+            });
+
+            // 将分类颜色保存到配置中
+            config.categoryColors = {};
+            categoryArray.forEach((name, i) => {
+                config.categoryColors[name] = categoryColors[name] || getDefaultColor(i);
+            });
+
+            const htmlContent = generateHtmlContent(exportNodes, exportLinks, categoryArray, exportColors, config);
+
+            const blob = new Blob([htmlContent], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'graph-network.html';
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showStatus('HTML 文件已导出', 'success');
+        }
+
+        // 生成 HTML 内容
+        function generateHtmlContent(nodes, links, categories, colors, config) {
+            // 计算哪些节点显示标签（根据比例）
+            const nodesWithLabel = nodes.map((node, index) => {
+                const labelThreshold = 100 - config.labelRatio;
+                const shouldShowLabel = config.labelRatio >= 100 ||
+                                       (index * 100 / nodes.length) >= labelThreshold;
+
+                // 获取标签显示内容：如果选择了标签字段则使用该字段值，否则使用节点 name
+                let labelText = node.name;
+                if (config.nodeLabelField && node.originalData && node.originalData[config.nodeLabelField] !== undefined) {
+                    labelText = String(node.originalData[config.nodeLabelField]);
+                }
+
+                return {
+                    ...node,
+                    label: {
+                        show: shouldShowLabel,
+                        position: config.labelPosition,
+                        formatter: function(params) {
+                            return params.data.nodeLabel || params.name;
+                        },
+                        color: config.nodeLabelColor,
+                        fontSize: config.labelFontSize
+                    },
+                    nodeLabel: labelText
+                };
+            });
+
+            return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>关系网络图</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"><\/script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body, html { width: 100%; height: 100%; overflow: hidden; }
+        #chart { width: 100%; height: 100%; }
+        .info {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            padding: 10px 15px;
+            background: rgba(0,0,0,0.7);
+            color: #fff;
+            border-radius: 8px;
+            font-size: 12px;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="info">
+        <strong>关系网络图</strong><br>
+        节点：${nodes.length} | 连线：${links.length}<br>
+        滚轮缩放 | 拖拽移动 | 点击高亮关联节点
+    </div>
+    <div id="chart"></div>
+    <script>
+        var nodes = ${JSON.stringify(nodes)};
+        var links = ${JSON.stringify(links)};
+        var categories = ${JSON.stringify(categories)};
+        var colors = ${JSON.stringify(colors)};
+        var config = ${JSON.stringify(config)};
+        var nodesWithLabel = ${JSON.stringify(nodesWithLabel)};
+
+        var option = {
+            backgroundColor: config.bgColor,
+            tooltip: {
+                trigger: 'item',
+                formatter: function(params) {
+                    if (params.dataType === 'node') {
+                        var content = '<strong>' + params.name + '</strong><br/>';
+                        for (var key in params.data) {
+                            content += key + ': ' + params.data[key] + '<br/>';
+                        }
+                        return content;
+                    }
+                    return params.data.source + ' → ' + params.data.target + '<br/>' + (params.data.value || '');
+                }
+            },
+            legend: [{
+                data: categories,
+                textStyle: { color: config.legendColor },
+                left: 10,
+                top: 'middle',
+                orient: 'vertical'
+            }],
+            series: [{
+                type: 'graph',
+                layout: config.layoutType,
+                data: nodesWithLabel,
+                links: links,
+                categories: categories.map(function(name, i) {
+                    return { name: name, itemStyle: { color: colors[i] } };
+                }),
+                roam: true,
+                label: {
+                    show: true,
+                    position: config.labelPosition,
+                    formatter: '{b}',
+                    color: config.nodeLabelColor,
+                    fontSize: config.labelFontSize
+                },
+                nodeStyle: {
+                    opacity: config.nodeOpacity
+                },
+                draggable: config.nodeDraggable,
+                lineStyle: {
+                    color: config.linkColor,
+                    curveness: 0.3,
+                    width: 1
+                },
+                edgeSymbol: config.showArrow ? ['none', 'arrow'] : ['none', 'none'],
+                edgeSymbolSize: 10,
+                emphasis: {
+                    focus: 'adjacency',
+                    lineStyle: { width: 3 }
+                },
+                force: config.layoutType === 'force' ? {
+                    repulsion: config.repulsion,
+                    edgeLength: config.linkDistance,
+                    gravity: 0.1
+                } : null,
+                circular: config.layoutType === 'circular' ? {
+                    rotateLabel: true
+                } : null
+            }]
+        };
+
+        var chartInstance = echarts.init(document.getElementById('chart'));
+        chartInstance.setOption(option);
+        window.addEventListener('resize', function() {
+            chartInstance.resize();
+        });
+    <\/script>
+</body>
+</html>`;
+        }
+
+        // 重置应用
+        function resetApp() {
+            nodeData = [];
+            linkData = [];
+            nodeHeaders = [];
+            linkHeaders = [];
+
+            document.getElementById('fileInput').value = '';
+            document.getElementById('emptyState').style.display = 'flex';
+            document.getElementById('nodeAttrsGrid').innerHTML = '';
+            document.getElementById('linkAttrsGrid').innerHTML = '';
+            document.getElementById('nodeDataGrid').innerHTML = '';
+            document.getElementById('linkDataGrid').innerHTML = '';
+
+            chartInstance.clear();
+            showStatus('已重置', 'success');
+        }
+
+        // 显示状态
+        function showStatus(message, type) {
+            const statusBar = document.getElementById('statusBar');
+            statusBar.textContent = message;
+            statusBar.className = 'status-bar ' + type;
+            statusBar.style.display = 'block';
+
+            setTimeout(() => {
+                statusBar.style.display = 'none';
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
